@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"url-shortener/internal/models"
 	"url-shortener/internal/repository"
