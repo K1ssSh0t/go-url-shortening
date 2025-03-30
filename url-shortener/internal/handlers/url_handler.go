@@ -1,135 +1,111 @@
 package handlers
 
 import (
-	"net/http"
+    "context"
+    "net/http"
+    "time"
+    "url-shortener/internal/repository"
+    "url-shortener/internal/models"
 
-	"github.com/gin-gonic/gin"
-
-	"url-shortener/internal/service"
+    "github.com/gin-gonic/gin"
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/bson/primitive"
+    "math/rand"
 )
 
-type URLHandler struct {
-	urlService *service.URLService
+func generateShortCode() string {
+    letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    code := make([]rune, 6)
+    for i := range code {
+        code[i] = letters[rand.Intn(len(letters))]
+    }
+    return string(code)
 }
 
-func NewURLHandler(urlService *service.URLService) *URLHandler {
-	return &URLHandler{urlService: urlService}
+func CreateShortURL(c *gin.Context) {
+    var input struct {
+        URL string `json:"url" binding:"required"`
+    }
+
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+        return
+    }
+
+    shortCode := generateShortCode()
+    newURL := models.ShortURL{
+        ID:          primitive.NewObjectID().Hex(),
+        URL:         input.URL,
+        ShortCode:   shortCode,
+        CreatedAt:   time.Now(),
+        UpdatedAt:   time.Now(),
+        AccessCount: 0,
+    }
+
+    _, err := repository.DB.InsertOne(context.TODO(), newURL)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save URL"})
+        return
+    }
+
+    c.JSON(http.StatusCreated, newURL)
 }
 
-func (h *URLHandler) CreateShortURL(c *gin.Context) {
-	var req struct {
-		URL string `json:"url" binding:"required,url"`
-	}
+func GetOriginalURL(c *gin.Context) {
+    shortCode := c.Param("shortCode")
+    var result models.ShortURL
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid URL",
-			"details": err.Error(),
-		})
-		return
-	}
+    err := repository.DB.FindOne(context.TODO(), bson.M{"short_code": shortCode}).Decode(&result)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
+        return
+    }
 
-	url, err := h.urlService.CreateShortURL(c.Request.Context(), req.URL)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to create short URL",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, url)
+    repository.DB.UpdateOne(context.TODO(), bson.M{"short_code": shortCode}, bson.M{"$inc": bson.M{"access_count": 1}})
+    c.JSON(http.StatusOK, result)
 }
 
-func (h *URLHandler) RedirectURL(c *gin.Context) {
-	shortCode := c.Param("shortCode")
+func UpdateShortURL(c *gin.Context) {
+    shortCode := c.Param("shortCode")
+    var input struct {
+        URL string `json:"url" binding:"required"`
+    }
 
-	url, err := h.urlService.GetOriginalURL(c.Request.Context(), shortCode)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to retrieve URL",
-			"details": err.Error(),
-		})
-		return
-	}
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+        return
+    }
 
-	if url == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Short URL not found",
-		})
-		return
-	}
+    update := bson.M{"$set": bson.M{"url": input.URL, "updated_at": time.Now()}}
+    res, err := repository.DB.UpdateOne(context.TODO(), bson.M{"short_code": shortCode}, update)
+    if err != nil || res.ModifiedCount == 0 {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
+        return
+    }
 
-	c.Redirect(http.StatusTemporaryRedirect, url.OriginalURL)
+    c.JSON(http.StatusOK, gin.H{"message": "URL updated"})
 }
 
-func (h *URLHandler) UpdateShortURL(c *gin.Context) {
-	shortCode := c.Param("shortCode")
+func DeleteShortURL(c *gin.Context) {
+    shortCode := c.Param("shortCode")
+    res, err := repository.DB.DeleteOne(context.TODO(), bson.M{"short_code": shortCode})
+    if err != nil || res.DeletedCount == 0 {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
+        return
+    }
 
-	var req struct {
-		URL string `json:"url" binding:"required,url"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid URL",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	updatedURL, err := h.urlService.UpdateShortURL(c.Request.Context(), shortCode, req.URL)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to update URL",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	if updatedURL == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Short URL not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, updatedURL)
+    c.JSON(http.StatusNoContent, nil)
 }
 
-func (h *URLHandler) DeleteShortURL(c *gin.Context) {
-	shortCode := c.Param("shortCode")
+func GetURLStats(c *gin.Context) {
+    shortCode := c.Param("shortCode")
+    var result models.ShortURL
 
-	err := h.urlService.DeleteShortURL(c.Request.Context(), shortCode)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to delete URL",
-			"details": err.Error(),
-		})
-		return
-	}
+    err := repository.DB.FindOne(context.TODO(), bson.M{"short_code": shortCode}).Decode(&result)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
+        return
+    }
 
-	c.Status(http.StatusNoContent)
-}
-
-func (h *URLHandler) GetURLStats(c *gin.Context) {
-	shortCode := c.Param("shortCode")
-
-	url, err := h.urlService.GetURLStats(c.Request.Context(), shortCode)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to retrieve URL stats",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	if url == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Short URL not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, url)
+    c.JSON(http.StatusOK, result)
 }

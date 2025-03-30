@@ -1,5 +1,5 @@
 package service
-
+/*
 import (
 	"context"
 
@@ -81,4 +81,4 @@ func (s *URLService) DeleteShortURL(ctx context.Context, shortCode string) error
 
 func (s *URLService) GetURLStats(ctx context.Context, shortCode string) (*models.URL, error) {
 	return s.repo.FindByShortCode(ctx, shortCode)
-}
+}*/
