@@ -2,65 +2,53 @@ package main
 
 import (
 	"context"
+
 	"log"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"url-shortener/internal/handlers"
-	"url-shortener/internal/repository"
-	"url-shortener/internal/service"
+
+	_ "url-shortener/docs"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title URL Shortener API
+// @version 1.0
+// @description This is a URL shortening service API
+// @host localhost:8080
+// @BasePath /
 func main() {
-	// MongoDB connection
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Get MongoDB connection string from environment or use default
-	mongoURI := os.Getenv("MONGODB_URI")
+	// Leer la variable de entorno MONGO_URI
+	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://localhost:27017" // Valor por defecto si la variable no está definida
 	}
 
-	// Create MongoDB client
+	// Configurar las opciones del cliente
 	clientOptions := options.Client().ApplyURI(mongoURI)
-	client, err := mongo.Connect(ctx, clientOptions)
+
+	// Conectar a MongoDB
+	_, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-	defer func() {
-		if err = client.Disconnect(ctx); err != nil {
-			log.Printf("Error disconnecting from MongoDB: %v", err)
-		}
-	}()
-
-	// Create repository, service, and handlers
-	repo := repository.NewURLRepository(client, "urlshortener")
-	urlService := service.NewURLService(repo)
-	urlHandler := handlers.NewURLHandler(urlService)
-
-	// Setup Gin router
-	router := gin.Default()
-
-	// URL shortener routes
-	v1 := router.Group("/api/v1")
-	{
-		v1.POST("/shorten", urlHandler.CreateShortURL)
-		v1.GET("/shorten/:shortCode", urlHandler.RedirectURL)
-		v1.PUT("/shorten/:shortCode", urlHandler.UpdateShortURL)
-		v1.DELETE("/shorten/:shortCode", urlHandler.DeleteShortURL)
-		v1.GET("/shorten/:shortCode/stats", urlHandler.GetURLStats)
+		log.Fatal(err)
 	}
 
-	// Start server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	log.Printf("Starting server on :%s", port)
-	log.Fatal(router.Run(":" + port))
+    r := gin.Default()
+
+    // Swagger documentation endpoint
+    r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+    
+    r.POST("/shorten", handlers.CreateShortURL)
+    r.GET("/shorten/:shortCode", handlers.GetOriginalURL)
+    r.PUT("/shorten/:shortCode", handlers.UpdateShortURL)
+    r.DELETE("/shorten/:shortCode", handlers.DeleteShortURL)
+    r.GET("/shorten/:shortCode/stats", handlers.GetURLStats)
+
+    r.Run(":8080")
 }
