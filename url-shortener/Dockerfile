@@ -30,5 +30,8 @@ COPY --from=builder /app/url-shortener .
 # Exponer puerto
 EXPOSE 8080
 
+# Agregar variable de entorno para configurar la conexión a MongoDB
+ENV MONGO_URI="mongodb://mongo:27017"
+
 # Comando para ejecutar
 CMD ["./url-shortener"]

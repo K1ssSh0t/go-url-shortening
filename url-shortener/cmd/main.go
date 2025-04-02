@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
+
+	"log"
+	"os"
+
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"url-shortener/internal/handlers"
-	"url-shortener/internal/repository"
 
 	_ "url-shortener/docs"
 
@@ -18,13 +24,25 @@ import (
 // @host localhost:8080
 // @BasePath /
 func main() {
-    repository.ConnectDB()
+	// Leer la variable de entorno MONGO_URI
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017" // Valor por defecto si la variable no está definida
+	}
+
+	// Configurar las opciones del cliente
+	clientOptions := options.Client().ApplyURI(mongoURI)
+
+	// Conectar a MongoDB
+	_, err := mongo.Connect(context.TODO(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
 
     r := gin.Default()
 
-      // Swagger documentation endpoint
-      r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-    
+    // Swagger documentation endpoint
+    r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
     
     r.POST("/shorten", handlers.CreateShortURL)
     r.GET("/shorten/:shortCode", handlers.GetOriginalURL)
