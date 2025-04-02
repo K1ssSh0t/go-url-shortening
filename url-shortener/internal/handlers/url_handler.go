@@ -1,17 +1,19 @@
 package handlers
 
 import (
-    "context"
-    "net/http"
-    "time"
-    "url-shortener/internal/repository"
-    "url-shortener/internal/models"
+	"context"
+	"net/http"
+	"time"
+	"url-shortener/internal/models"
+	"url-shortener/internal/repository"
 
-    "github.com/gin-gonic/gin"
-    "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/bson/primitive"
-    "math/rand"
+	"math/rand"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
 
 func generateShortCode() string {
     letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -22,6 +24,16 @@ func generateShortCode() string {
     return string(code)
 }
 
+// @Summary      Crear una URL corta
+// @Description  Crea una nueva URL corta a partir de una URL larga
+// @Tags         urls
+// @Accept       json
+// @Produce      json
+// @Param        url  body      models.ShortURL  true  "URL a acortar"
+// @Success      201  {object}  models.ShortURL
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /shorten [post]
 func CreateShortURL(c *gin.Context) {
     var input struct {
         URL string `json:"url" binding:"required"`
@@ -51,6 +63,15 @@ func CreateShortURL(c *gin.Context) {
     c.JSON(http.StatusCreated, newURL)
 }
 
+// @Summary      Obtener URL original
+// @Description  Obtiene la URL original a partir de un código corto
+// @Tags         urls
+// @Accept       json
+// @Produce      json
+// @Param        shortCode  path      string  true  "Código corto de la URL"
+// @Success      200        {object}  models.ShortURL
+// @Failure      404        {object}  map[string]string
+// @Router       /shorten/{shortCode} [get]
 func GetOriginalURL(c *gin.Context) {
     shortCode := c.Param("shortCode")
     var result models.ShortURL
@@ -65,6 +86,17 @@ func GetOriginalURL(c *gin.Context) {
     c.JSON(http.StatusOK, result)
 }
 
+// @Summary      Actualizar URL corta
+// @Description  Actualiza la URL original asociada a un código corto
+// @Tags         urls
+// @Accept       json
+// @Produce      json
+// @Param        shortCode  path      string  true  "Código corto de la URL"
+// @Param        url        body      models.ShortURL  true  "Nueva URL"
+// @Success      200        {object}  map[string]string
+// @Failure      400        {object}  map[string]string
+// @Failure      404        {object}  map[string]string
+// @Router       /shorten/{shortCode} [put]
 func UpdateShortURL(c *gin.Context) {
     shortCode := c.Param("shortCode")
     var input struct {
@@ -86,6 +118,15 @@ func UpdateShortURL(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"message": "URL updated"})
 }
 
+// @Summary      Eliminar URL corta
+// @Description  Elimina una URL corta y su asociación
+// @Tags         urls
+// @Accept       json
+// @Produce      json
+// @Param        shortCode  path      string  true  "Código corto de la URL"
+// @Success      204        {object}  nil
+// @Failure      404        {object}  map[string]string
+// @Router       /shorten/{shortCode} [delete]
 func DeleteShortURL(c *gin.Context) {
     shortCode := c.Param("shortCode")
     res, err := repository.DB.DeleteOne(context.TODO(), bson.M{"short_code": shortCode})
@@ -97,6 +138,15 @@ func DeleteShortURL(c *gin.Context) {
     c.JSON(http.StatusNoContent, nil)
 }
 
+// @Summary      Obtener estadísticas
+// @Description  Obtiene las estadísticas de uso de una URL corta
+// @Tags         urls
+// @Accept       json
+// @Produce      json
+// @Param        shortCode  path      string  true  "Código corto de la URL"
+// @Success      200        {object}  models.ShortURL
+// @Failure      404        {object}  map[string]string
+// @Router       /shorten/{shortCode}/stats [get]
 func GetURLStats(c *gin.Context) {
     shortCode := c.Param("shortCode")
     var result models.ShortURL

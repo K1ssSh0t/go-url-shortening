@@ -1,0 +1,177 @@
+basePath: /
+definitions:
+  models.ShortURL:
+    properties:
+      accessCount:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: string
+      shortCode:
+        type: string
+      updatedAt:
+        type: string
+      url:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a URL shortening service API
+  title: URL Shortener API
+  version: "1.0"
+paths:
+  /shorten:
+    post:
+      consumes:
+      - application/json
+      description: Crea una nueva URL corta a partir de una URL larga
+      parameters:
+      - description: URL a acortar
+        in: body
+        name: url
+        required: true
+        schema:
+          $ref: '#/definitions/models.ShortURL'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ShortURL'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Crear una URL corta
+      tags:
+      - urls
+  /shorten/{shortCode}:
+    delete:
+      consumes:
+      - application/json
+      description: Elimina una URL corta y su asociación
+      parameters:
+      - description: Código corto de la URL
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Eliminar URL corta
+      tags:
+      - urls
+    get:
+      consumes:
+      - application/json
+      description: Obtiene la URL original a partir de un código corto
+      parameters:
+      - description: Código corto de la URL
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ShortURL'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener URL original
+      tags:
+      - urls
+    put:
+      consumes:
+      - application/json
+      description: Actualiza la URL original asociada a un código corto
+      parameters:
+      - description: Código corto de la URL
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      - description: Nueva URL
+        in: body
+        name: url
+        required: true
+        schema:
+          $ref: '#/definitions/models.ShortURL'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Actualizar URL corta
+      tags:
+      - urls
+  /shorten/{shortCode}/stats:
+    get:
+      consumes:
+      - application/json
+      description: Obtiene las estadísticas de uso de una URL corta
+      parameters:
+      - description: Código corto de la URL
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ShortURL'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener estadísticas
+      tags:
+      - urls
+swagger: "2.0"
