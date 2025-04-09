@@ -2,20 +2,16 @@ package main
 
 import (
 	"context"
-
 	"log"
 	"os"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/swagger"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"url-shortener/internal/handlers"
-
 	_ "url-shortener/docs"
-
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	"url-shortener/internal/handlers"
 )
 
 // @title URL Shortener API
@@ -27,7 +23,7 @@ func main() {
 	// Leer la variable de entorno MONGO_URI
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017" // Valor por defecto si la variable no está definida
+		mongoURI = "mongodb://localhost:27017"
 	}
 
 	// Configurar las opciones del cliente
@@ -39,16 +35,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-    r := gin.Default()
+	app := fiber.New()
 
-    // Swagger documentation endpoint
-    r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-    
-    r.POST("/shorten", handlers.CreateShortURL)
-    r.GET("/shorten/:shortCode", handlers.GetOriginalURL)
-    r.PUT("/shorten/:shortCode", handlers.UpdateShortURL)
-    r.DELETE("/shorten/:shortCode", handlers.DeleteShortURL)
-    r.GET("/shorten/:shortCode/stats", handlers.GetURLStats)
+	// Swagger documentation endpoint
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
-    r.Run(":8080")
+	app.Post("/shorten", handlers.CreateShortURL)
+	app.Get("/shorten/:shortCode", handlers.GetOriginalURL)
+	app.Put("/shorten/:shortCode", handlers.UpdateShortURL)
+	app.Delete("/shorten/:shortCode", handlers.DeleteShortURL)
+	app.Get("/shorten/:shortCode/stats", handlers.GetURLStats)
+
+	log.Fatal(app.Listen(":8080"))
 }

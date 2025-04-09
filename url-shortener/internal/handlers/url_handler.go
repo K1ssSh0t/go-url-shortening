@@ -2,18 +2,16 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"time"
 	"url-shortener/internal/models"
 	"url-shortener/internal/repository"
 
 	"math/rand"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
 
 func generateShortCode() string {
     letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -34,14 +32,13 @@ func generateShortCode() string {
 // @Failure      400  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /shorten [post]
-func CreateShortURL(c *gin.Context) {
+func CreateShortURL(c *fiber.Ctx) error {
     var input struct {
-        URL string `json:"url" binding:"required"`
+        URL string `json:"url"`
     }
 
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-        return
+    if err := c.BodyParser(&input); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
     }
 
     shortCode := generateShortCode()
@@ -56,11 +53,10 @@ func CreateShortURL(c *gin.Context) {
 
     _, err := repository.DB.InsertOne(context.TODO(), newURL)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save URL"})
-        return
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not save URL"})
     }
 
-    c.JSON(http.StatusCreated, newURL)
+    return c.Status(fiber.StatusCreated).JSON(newURL)
 }
 
 // @Summary      Obtener URL original
@@ -72,18 +68,17 @@ func CreateShortURL(c *gin.Context) {
 // @Success      200        {object}  models.ShortURL
 // @Failure      404        {object}  map[string]string
 // @Router       /shorten/{shortCode} [get]
-func GetOriginalURL(c *gin.Context) {
-    shortCode := c.Param("shortCode")
+func GetOriginalURL(c *fiber.Ctx) error {
+    shortCode := c.Params("shortCode")
     var result models.ShortURL
 
     err := repository.DB.FindOne(context.TODO(), bson.M{"short_code": shortCode}).Decode(&result)
     if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
-        return
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Short URL not found"})
     }
 
     repository.DB.UpdateOne(context.TODO(), bson.M{"short_code": shortCode}, bson.M{"$inc": bson.M{"access_count": 1}})
-    c.JSON(http.StatusOK, result)
+    return c.Status(fiber.StatusOK).JSON(result)
 }
 
 // @Summary      Actualizar URL corta
@@ -97,25 +92,23 @@ func GetOriginalURL(c *gin.Context) {
 // @Failure      400        {object}  map[string]string
 // @Failure      404        {object}  map[string]string
 // @Router       /shorten/{shortCode} [put]
-func UpdateShortURL(c *gin.Context) {
-    shortCode := c.Param("shortCode")
+func UpdateShortURL(c *fiber.Ctx) error {
+    shortCode := c.Params("shortCode")
     var input struct {
-        URL string `json:"url" binding:"required"`
+        URL string `json:"url"`
     }
 
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-        return
+    if err := c.BodyParser(&input); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
     }
 
     update := bson.M{"$set": bson.M{"url": input.URL, "updated_at": time.Now()}}
     res, err := repository.DB.UpdateOne(context.TODO(), bson.M{"short_code": shortCode}, update)
     if err != nil || res.ModifiedCount == 0 {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
-        return
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Short URL not found"})
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "URL updated"})
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "URL updated"})
 }
 
 // @Summary      Eliminar URL corta
@@ -127,15 +120,14 @@ func UpdateShortURL(c *gin.Context) {
 // @Success      204        {object}  nil
 // @Failure      404        {object}  map[string]string
 // @Router       /shorten/{shortCode} [delete]
-func DeleteShortURL(c *gin.Context) {
-    shortCode := c.Param("shortCode")
+func DeleteShortURL(c *fiber.Ctx) error {
+    shortCode := c.Params("shortCode")
     res, err := repository.DB.DeleteOne(context.TODO(), bson.M{"short_code": shortCode})
     if err != nil || res.DeletedCount == 0 {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
-        return
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Short URL not found"})
     }
 
-    c.JSON(http.StatusNoContent, nil)
+    return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
 // @Summary      Obtener estadísticas
@@ -147,15 +139,14 @@ func DeleteShortURL(c *gin.Context) {
 // @Success      200        {object}  models.ShortURL
 // @Failure      404        {object}  map[string]string
 // @Router       /shorten/{shortCode}/stats [get]
-func GetURLStats(c *gin.Context) {
-    shortCode := c.Param("shortCode")
+func GetURLStats(c *fiber.Ctx) error {
+    shortCode := c.Params("shortCode")
     var result models.ShortURL
 
     err := repository.DB.FindOne(context.TODO(), bson.M{"short_code": shortCode}).Decode(&result)
     if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
-        return
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Short URL not found"})
     }
 
-    c.JSON(http.StatusOK, result)
+    return c.Status(fiber.StatusOK).JSON(result)
 }
