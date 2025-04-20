@@ -15,9 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/shorten": {
+        "/shorten/": {
             "post": {
-                "description": "Crea una nueva URL corta a partir de una URL larga",
+                "description": "Genera un código corto para una URL original y la almacena en la base de datos",
                 "consumes": [
                     "application/json"
                 ],
@@ -25,17 +25,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "urls"
+                    "URLs"
                 ],
-                "summary": "Crear una URL corta",
+                "summary": "Crea una URL corta",
                 "parameters": [
                     {
                         "description": "URL a acortar",
-                        "name": "url",
+                        "name": "data",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ShortURL"
+                            "$ref": "#/definitions/models.CreateURLRequest"
                         }
                     }
                 ],
@@ -43,7 +43,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.ShortURL"
+                            "$ref": "#/definitions/models.URL"
                         }
                     },
                     "400": {
@@ -69,21 +69,18 @@ const docTemplate = `{
         },
         "/shorten/{shortCode}": {
             "get": {
-                "description": "Obtiene la URL original a partir de un código corto",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Devuelve los datos de la URL original asociada a un código corto (no redirige)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "urls"
+                    "URLs"
                 ],
-                "summary": "Obtener URL original",
+                "summary": "Obtiene datos de la URL original",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Código corto de la URL",
+                        "description": "Código corto",
                         "name": "shortCode",
                         "in": "path",
                         "required": true
@@ -93,58 +90,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ShortURL"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Actualiza la URL original asociada a un código corto",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "urls"
-                ],
-                "summary": "Actualizar URL corta",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Código corto de la URL",
-                        "name": "shortCode",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Nueva URL",
-                        "name": "url",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.ShortURL"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/models.URL"
                         }
                     },
                     "400": {
@@ -164,11 +110,20 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             },
-            "delete": {
-                "description": "Elimina una URL corta y su asociación",
+            "put": {
+                "description": "Actualiza la URL original asociada a un código corto",
                 "consumes": [
                     "application/json"
                 ],
@@ -176,13 +131,73 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "urls"
+                    "URLs"
                 ],
-                "summary": "Eliminar URL corta",
+                "summary": "Actualiza la URL original",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Código corto de la URL",
+                        "description": "Código corto",
+                        "name": "shortCode",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Nueva URL",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateURLRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.URL"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Elimina la URL corta asociada a un código",
+                "tags": [
+                    "URLs"
+                ],
+                "summary": "Elimina una URL corta",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Código corto",
                         "name": "shortCode",
                         "in": "path",
                         "required": true
@@ -192,8 +207,26 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -206,21 +239,18 @@ const docTemplate = `{
         },
         "/shorten/{shortCode}/stats": {
             "get": {
-                "description": "Obtiene las estadísticas de uso de una URL corta",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Devuelve el número de accesos y datos de la URL corta",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "urls"
+                    "URLs"
                 ],
-                "summary": "Obtener estadísticas",
+                "summary": "Obtiene estadísticas de una URL corta",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Código corto de la URL",
+                        "description": "Código corto",
                         "name": "shortCode",
                         "in": "path",
                         "required": true
@@ -230,7 +260,16 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ShortURL"
+                            "$ref": "#/definitions/models.URL"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "404": {
@@ -241,22 +280,89 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/{shortCode}": {
+            "get": {
+                "description": "Redirige al usuario a la URL original usando el código corto",
+                "tags": [
+                    "URLs"
+                ],
+                "summary": "Redirige a la URL original",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Código corto",
+                        "name": "shortCode",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "301": {
+                        "description": "Moved Permanently"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL corta no encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         }
     },
     "definitions": {
-        "models.ShortURL": {
+        "models.CreateURLRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "url": {
+                    "description": "Añadimos validación básica",
+                    "type": "string"
+                }
+            }
+        },
+        "models.URL": {
             "type": "object",
             "properties": {
                 "accessCount": {
+                    "description": "Usamos int64 para contadores potencialmente grandes",
                     "type": "integer"
                 },
                 "createdAt": {
                     "type": "string"
                 },
                 "id": {
+                    "description": "_id es el estándar en MongoDB",
                     "type": "string"
                 },
                 "shortCode": {
@@ -269,18 +375,29 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "models.UpdateURLRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "URL Shortener API",
-	Description:      "This is a URL shortening service API",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

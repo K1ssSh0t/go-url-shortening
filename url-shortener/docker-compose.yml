@@ -18,7 +18,7 @@ services:
     depends_on:
       - mongodb
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGO_URI=mongodb://mongodb:27017
 
 volumes:
   mongodb_data:

@@ -1,12 +1,21 @@
-basePath: /
 definitions:
-  models.ShortURL:
+  models.CreateURLRequest:
+    properties:
+      url:
+        description: Añadimos validación básica
+        type: string
+    required:
+    - url
+    type: object
+  models.URL:
     properties:
       accessCount:
+        description: Usamos int64 para contadores potencialmente grandes
         type: integer
       createdAt:
         type: string
       id:
+        description: _id es el estándar en MongoDB
         type: string
       shortCode:
         type: string
@@ -15,32 +24,65 @@ definitions:
       url:
         type: string
     type: object
-host: localhost:8080
+  models.UpdateURLRequest:
+    properties:
+      url:
+        type: string
+    required:
+    - url
+    type: object
 info:
   contact: {}
-  description: This is a URL shortening service API
-  title: URL Shortener API
-  version: "1.0"
 paths:
-  /shorten:
+  /{shortCode}:
+    get:
+      description: Redirige al usuario a la URL original usando el código corto
+      parameters:
+      - description: Código corto
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      responses:
+        "301":
+          description: Moved Permanently
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: URL corta no encontrada
+          schema:
+            type: string
+        "500":
+          description: Error interno del servidor
+          schema:
+            type: string
+      summary: Redirige a la URL original
+      tags:
+      - URLs
+  /shorten/:
     post:
       consumes:
       - application/json
-      description: Crea una nueva URL corta a partir de una URL larga
+      description: Genera un código corto para una URL original y la almacena en la
+        base de datos
       parameters:
       - description: URL a acortar
         in: body
-        name: url
+        name: data
         required: true
         schema:
-          $ref: '#/definitions/models.ShortURL'
+          $ref: '#/definitions/models.CreateURLRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.ShortURL'
+            $ref: '#/definitions/models.URL'
         "400":
           description: Bad Request
           schema:
@@ -53,85 +95,21 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Crear una URL corta
+      summary: Crea una URL corta
       tags:
-      - urls
+      - URLs
   /shorten/{shortCode}:
     delete:
-      consumes:
-      - application/json
-      description: Elimina una URL corta y su asociación
+      description: Elimina la URL corta asociada a un código
       parameters:
-      - description: Código corto de la URL
+      - description: Código corto
         in: path
         name: shortCode
         required: true
         type: string
-      produces:
-      - application/json
       responses:
         "204":
           description: No Content
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Eliminar URL corta
-      tags:
-      - urls
-    get:
-      consumes:
-      - application/json
-      description: Obtiene la URL original a partir de un código corto
-      parameters:
-      - description: Código corto de la URL
-        in: path
-        name: shortCode
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.ShortURL'
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Obtener URL original
-      tags:
-      - urls
-    put:
-      consumes:
-      - application/json
-      description: Actualiza la URL original asociada a un código corto
-      parameters:
-      - description: Código corto de la URL
-        in: path
-        name: shortCode
-        required: true
-        type: string
-      - description: Nueva URL
-        in: body
-        name: url
-        required: true
-        schema:
-          $ref: '#/definitions/models.ShortURL'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "400":
           description: Bad Request
           schema:
@@ -144,16 +122,20 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Actualizar URL corta
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Elimina una URL corta
       tags:
-      - urls
-  /shorten/{shortCode}/stats:
+      - URLs
     get:
-      consumes:
-      - application/json
-      description: Obtiene las estadísticas de uso de una URL corta
+      description: Devuelve los datos de la URL original asociada a un código corto
+        (no redirige)
       parameters:
-      - description: Código corto de la URL
+      - description: Código corto
         in: path
         name: shortCode
         required: true
@@ -164,14 +146,107 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ShortURL'
+            $ref: '#/definitions/models.URL'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Obtener estadísticas
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtiene datos de la URL original
       tags:
-      - urls
+      - URLs
+    put:
+      consumes:
+      - application/json
+      description: Actualiza la URL original asociada a un código corto
+      parameters:
+      - description: Código corto
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      - description: Nueva URL
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateURLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.URL'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Actualiza la URL original
+      tags:
+      - URLs
+  /shorten/{shortCode}/stats:
+    get:
+      description: Devuelve el número de accesos y datos de la URL corta
+      parameters:
+      - description: Código corto
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.URL'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtiene estadísticas de una URL corta
+      tags:
+      - URLs
 swagger: "2.0"
